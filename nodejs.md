@@ -345,17 +345,233 @@ DBrefs算是一种自动引用，将其都当做变量，而关系一栏中讲�
 
 ## Mongoose
 
+### schema
+
 > Everything in Mongoose starts with a Schema. Each schema maps to a MongoDB collection and defines the shape of the documents within that collection. 
 
 schema可以是模式，概要的意思，在这里用来作为collection格式的定义。schema是mongoose对象上的一个方法，本身又是构造函数，通过构造函数来创建schema。schema的作用很大。
 
 > Schemas not only define the structure of your document and casting of properties, they also define document [instance methods](https://mongoosejs.com/docs/guide.html#methods), [static Model methods](https://mongoosejs.com/docs/guide.html#statics), [compound indexes](https://mongoosejs.com/docs/guide.html#indexes), and document lifecycle hooks called [middleware](https://mongoosejs.com/docs/middleware.html). 
 
-这个
+`从趋势来看,  mongoose这一类的东西会让上手变复杂，但使用起来却会更方便些。` 
 
+schema对应collection，定义文档的结构，包括数据的结构和数据的类型。在这里面model可以对应工厂的模具
 
+```js
+var Kitten = mongoose.model('Kitten', kittySchema);
 
+    var silence = new Kitten({
+        name: 'Silence'
+    });
+```
 
+上面的过程就是用模具来制造一个猫，而在此之前，还有一个模型的模型，就是schema，可以说是一种设计。模型的设计。
+
+所以mongoose的流程是，先设计（schema），设计完后制造模型（mongoose.model），之后再用模型生产文档（实例，instance）。
+
+在设计阶段，实例的形状大小硬度作用已经被决定了。
+
+把握这个大方向，继续向前理解。
+
+#### model
+
+作为model，在定义的时候是首字母大写的，但保存进数据库时被mongoose改成了小写加负数形式。	
+
+#### [Instance methods](https://mongoosejs.com/docs/guide.html#methods)
+
+-  定义方法时不要用箭头函数，不然里面的this会绑定不上。
+
+大概也是继承的方式而已。是实例所使用的，里面的this指向实例，就是文档，如果要获取到集合，就是model，似乎用.model方法。
+
+#### static
+
+```js
+  animalSchema.statics.findByName = function(name, cb) {
+    return this.find({ name: new RegExp(name, 'i') }, cb);
+  };
+
+  var Animal = mongoose.model('Animal', animalSchema);
+  Animal.findByName('fido', function(err, animals) {
+    console.log(animals);
+  });
+```
+
+方法是model来使用的，那这个属于构造函数的静态方法。
+
+#### query helpers
+
+查询助手。
+
+目前看来似乎是是查询mongodb中的条件操作符，可以指定更多的查询条件。
+
+#### indexes
+
+索引，创立索引。据说会自动创立索引，但会影响性能，建议不要自动开启。
+
+#### virtuals
+
+提供一个setter和getter。如果用setter建议用来格式化数据，比如时间、姓名等等来拼接的，而getter据说，可以用来把一个数据改成多个数据。
+
+通过virtual技术实现一个alias的作用，就是可以省宽带（原话），将比较少的字母存进数据库，但是读出来的时候是正常的。
+
+#### schema的参数
+
+有点恐怖有点多。
+
+- autoindex
+
+生产环境最好去掉，如果想好好管理的数据库的话。
+
+- autoCreate
+
+自动创建。默认是false，开发环境中设置true并且设置capped会对开发有帮助，大概是会提高效率的。在创建的时候会遵循校对规则。`collation` ，这个东西后面会讲。
+
+- bufferCommands
+
+buffer指令，但不知道有什么用。
+
+- capped
+
+设置固定集合的。
+
+- collection
+
+指定集合的名字的，不然会调用一个toCollectionName方法去转换model名字为集合名字。大概是大写开头变小写，并且加上s。
+
+有一个pluralize的方法，就是复数的意思。这套规则不但作为代码还不错，作为英语学习也是相当好的。
+
+```js
+
+exports.pluralization = [
+  [/(m)an$/gi, '$1en'],
+  [/(pe)rson$/gi, '$1ople'],
+  [/(child)$/gi, '$1ren'],
+  [/^(ox)$/gi, '$1en'],
+  [/(ax|test)is$/gi, '$1es'],
+  [/(octop|vir)us$/gi, '$1i'],
+  [/(alias|status)$/gi, '$1es'],
+  [/(bu)s$/gi, '$1ses'],
+  [/(buffal|tomat|potat)o$/gi, '$1oes'],
+  [/([ti])um$/gi, '$1a'],
+  [/sis$/gi, 'ses'],
+  [/(?:([^f])fe|([lr])f)$/gi, '$1$2ves'],
+  [/(hive)$/gi, '$1s'],
+  [/([^aeiouy]|qu)y$/gi, '$1ies'],
+  [/(x|ch|ss|sh)$/gi, '$1es'],
+  [/(matr|vert|ind)ix|ex$/gi, '$1ices'],
+  [/([m|l])ouse$/gi, '$1ice'],
+  [/(kn|w|l)ife$/gi, '$1ives'],
+  [/(quiz)$/gi, '$1zes'],
+  [/s$/gi, 's'],
+  [/([^a-z])$/, '$1'],
+  [/$/gi, 's']
+];
+var rules = exports.pluralization;
+
+/**
+ * Uncountable words.
+ *
+ * These words are applied while processing the argument to `toCollectionName`.
+ * @api public
+ */
+
+exports.uncountables = [
+  'advice',
+  'energy',
+  'excretion',
+  'digestion',
+  'cooperation',
+  'health',
+  'justice',
+  'labour',
+  'machinery',
+  'equipment',
+  'information',
+  'pollution',
+  'sewage',
+  'paper',
+  'money',
+  'species',
+  'series',
+  'rain',
+  'rice',
+  'fish',
+  'sheep',
+  'moose',
+  'deer',
+  'news',
+  'expertise',
+  'status',
+  'media'
+];
+var uncountables = exports.uncountables;
+
+/*!
+ * Pluralize function.
+ *
+ * @author TJ Holowaychuk (extracted from _ext.js_)
+ * @param {String} string to pluralize
+ * @api private
+ */
+
+function pluralize(str) {
+  var found;
+  str = str.toLowerCase();
+  if (!~uncountables.indexOf(str)) {
+    found = rules.filter(function(rule) {
+      return str.match(rule[0]);
+    });
+    if (found[0]) {
+      return str.replace(found[0][0], found[0][1]);
+    }
+  }
+  return str;
+}
+```
+
+如果不完全是mongoose来操作，可以指定集合名称，不然会乱掉。
+
+- id
+
+如果不开启的话，在实例上不会通过这个字段去获取objectid的。
+
+- _id
+
+可以实现不保存默认的_id字段，但是只能在subdocment（大概为子文档），因为mongodb在不知道id的时候不够保存。
+
+```js
+// disabled _id
+var childSchema = new Schema({ name: String }, { _id: false });
+var parentSchema = new Schema({ children: [childSchema] });
+
+var Model = mongoose.model('Model', parentSchema);
+
+Model.create({ children: [{ name: 'Luke' }] }, function(error, doc) {
+  // doc.children[0]._id will be undefined
+});
+```
+
+- minimize
+
+默认不保存空的对象，如果设置为false，则会保存空对象。
+
+- read
+
+读取选项。貌似是指定优先读取的顺序，当链接多个数据库的时候可能需要这个。
+
+- writeConcern
+
+写关注机制。
+
+现在倒不是很懂，需要去百度。这些配置的熟悉对于如何运用他们是非常重要的。
+
+- shardkey
+
+集群架构的时候用的。
+
+- strict
+
+默认true。如果是false，里面的字段可以不存在schema里面定义的。就是说可以出现新的。
 
 ### api
 
@@ -364,3 +580,10 @@ schema可以是模式，概要的意思，在这里用来作为collection格式�
 
 
 `node --inspect app.js` ,这种方式
+
+
+
+## 问题
+
+1. 实例的this肯定是实例本身，他的model方法和mongoose.model不一样。但是什么呢。mongoose.model是用来制造集合的。this.model可能会等于db.collection。
+2. 作为module
