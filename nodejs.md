@@ -428,7 +428,7 @@ var Kitten = mongoose.model('Kitten', kittySchema);
 
 - bufferCommands
 
-buffer指令，但不知道有什么用。
+  缓冲指令，但不知道有什么用。`发现是用来可以把model操作先缓存起来，等数据库连接了再执行。可以通过把操作放到事件里面，然后连接的时候查看状态，如果有操作则执行` 
 
 - capped
 
@@ -571,7 +571,438 @@ Model.create({ children: [{ name: 'Luke' }] }, function(error, doc) {
 
 - strict
 
-默认true。如果是false，里面的字段可以不存在schema里面定义的。就是说可以出现新的。
+默认true。如果是false，里面的字段可以不存在schema里面定义的。就是说可以出别的东西，也能保存。
+
+- strictQuery
+
+为了和前面的兼容，
+
+- toJSON和toObject
+
+可以转换成字符串的，转换成js对象的。有一些选项，比如当设置了getters为true，定义的getter则会执行。
+
+- typeKey
+
+默认是type字段来表示属性的type，但是如果有冲突，可以通过这个属性来改变。
+
+- validateBeforeSave
+
+默认是会检验是否合法，比如不能存储null，而设置为false之后好像可以储存。
+
+- versionKey
+
+> Note that Mongoose versioning is **not** a full [optimistic concurrency](https://en.wikipedia.org/wiki/Optimistic_concurrency_control) solution. Use [mongoose-update-if-current](https://github.com/eoin-obrien/mongoose-update-if-current) for OCC support. Mongoose versioning only operates on arrays: 
+
+不是乐观并发解决方式？乐观并发锁。。好像是一种为了提供性能而让并发锁减少效力的方式，就是不一定能有效解决并发。
+
+`这里强调，如果你不懂，别设置为false` 
+
+> Mongoose *only* updates the version key when you use [`save()`](https://mongoosejs.com/docs/api.html#document_Document-save) 
+
+别的方法不更新你的数据版本。
+
+- collation
+
+校对规则？比如大小写，甚至变音符号，类似法语字母头顶上上一撇。
+
+- skipVersioning
+
+不要瞎改除非你知道自己在做什么。
+
+- timestamps
+
+会自动新建时间，建立时间和修改时间都可以自动处理。
+
+- useNestedStrict
+
+如果不指定，子schema会遵循父schema的严格规则。
+
+- selectPopulatePaths
+
+自动填充路径，path在schema的种就是key，而自动填充路径。跟select方法有关，默认会帮忙填充别的路径。如果select是投射的方法，那这个就是选取某种东西了。
+
+### schemaType
+
+schema是model的配置对象，schemaType是指定path的类型，有没有getter/setter，怎么才是合法。
+
+对于path可以指定类型，也可以指定很多别的配置。有些配置是所有type都可以用的，而不同type还会有些特定配置。
+
+所有类型可有的配置如下：
+
+- 是否必须，如果是必须的要添加验证规则。
+- 默认值。
+- 默认projection
+- 验证规则
+- get
+- set
+- 别名
+
+总体来看，就设定这个值可以是什么（默认，验证），通过哪种方式获取（别名），获取后又做何加工（projection，get），至于set有什么用。
+
+#### **indexes**
+
+- index - 创建索引
+- unique -  唯一索引，比如登录账户，用户名，可以用这个来保证。
+- sparse - 松散索引，配合唯一索引使用时，比如说userCode是唯一并且松散的，如果一个doc没有userCode，其他key重复就没关系。
+
+#### **String**
+
+- lowercase
+- uppercase
+- trim
+- match - 会判断是否符合这个正则
+- enum - 枚举的意思，判断值是否在这个里面
+- minlength
+- maxlength
+
+#### **Number**
+
+- min  
+- max
+
+**Date**
+
+- min
+- max
+
+
+
+String类型会调用toString方法，而Number类型会调用valueOf方法。
+
+注意Data类型有点问题，如果你使用Data内置方法，比如setmonth来设置时间，mongoose不会监听到，所以需要用doc.markModified这个方法来告诉mongoose已经改变了。
+
+mixed，混合类型。这个类型说明里面很可能出现不同类型的数据，这mongoose没有能力监听和获取它的变化，也需要用doc.markModified来处理一下。
+
+boolen，甚至连yes和no都可以转换。
+
+###  connections
+
+#### operation Buffering
+
+如果有操作并且没有连接数据库，会先缓存起来，连接的时候再操作。
+
+这个在schema里面有个选项了。也可以全局关闭这个选项
+
+`mongoose.set('bufferCommands',false)`
+
+- 用户密码
+
+- `autoIndex`可以自动创建，但是据说如果数据太多就不太好。
+
+- 数据库名称，
+
+- 使用新的url解析器，这个默认要用上不然老是提示你。
+
+- useCreateIndex，使用createIndex来作为建立索引的方法。
+
+- 自动连接
+
+- 尝试重连
+
+- 一直重试重连
+
+- findAndModify，这不知道是什么鬼。
+
+- promiseLibrary，设置promise库，底层的
+
+- poolsize，连接池？好像是说超过5个了，这个node.js的drive就不连接了？不知道是否如此。
+
+- bufferMaxEntries -  貌似和bufferCommands相关的，就是说让你缓存多少个，如果设置为0的话，就会让没连接时候的操作立即失败。
+
+- connectTimeoutMS - mongoodb 一个超时时间，这个默认是30秒，好像是说如果你的操作太久了，就要注意了。
+
+- family
+
+  >  If your `mongoose.connect(uri)` call takes a long time, try `mongoose.connect(uri, { family: 4 })` 
+
+这些连接可以通过字符串，来指定，但是给mongoose的操作，是不行的，给mongodb的是可以的。具体是哪些，需要时再查。
+
+连接有一大堆时间。开始连接，连接完成，要断连接了，已经断了。关闭。重连。出错
+
+fullsetup和all，这两个好像和多集群有关。
+
+- keepAlive
+
+默认是开启的。还可以设置一个延迟时间，设置应用开启之后要多久才开启keepAlive。
+
+### model
+
+> Models are responsible for creating and reading documents from the underlying MongoDB database. 
+
+model是用来读取和插入文档的。
+
+```js
+
+```
+
+自动变成复数。
+
+生产 document ，用new就好了。如果需要保存到数据库。有许多方法
+
+- doc.save
+- model.create
+- model.insertMany
+
+每个model都有一个相关的连接，用mongoose.model来制造doc，是用的默认连接。另外也可以弄一个自定的连接，而用这个自定的连接就会连到不同数据库。
+
+#### **querying**
+
+检索方法很多，具体的话要看query api。这里只是一笔带过。
+
+#### **deleting**
+
+deleteOne 和 deleteMany ，这连个是model的静态方法。
+
+#### **updating**
+
+这个方法会更新，但是不返回数据。如果需要返回，findOneAndUpdate是我想要的。
+
+#### **change Streams**
+
+据说可以监控model，如果有更新的话，可以返回。
+
+### document
+
+document和model的关系很密切，
+
+```js
+const MyModel = mongoose.model('Test', new Schema({ name: String }));
+const doc = new MyModel();
+
+doc instanceof MyModel; // true
+doc instanceof mongoose.Model; // true
+doc instanceof mongoose.Document; // true
+```
+
+>  The Model class is a subclass of the Document class.  
+
+据说model类还是document的子类？？
+
+当检索的时候，比如使用findOne，会获得一个doc，而这个doc就是和new Model出来的doc一样的。
+
+#### **updating**
+
+修改doc时候，如果再保存，mongoose会自动变成mongodb的更新操作。
+
+据说通常情况下，更新操作要用save，你可以得到完整的验证和中间件。validation和middleware，后面会知道详情。
+
+而另外几个操作，`update` `updateMany` `findOneAndUpdate` ，不会执行save的中间件，这个暂时不知道有啥意思。	
+
+#### **validating**
+
+这里并不清楚，可能还是要到后面才知道。这里说调用才。。。
+
+### subdocuments
+
+两种不同的表示方式。数组里面，单纯的折叠。
+
+子文档，没什么区别。也有middleware,validation,virtuals，别的等等。但主要区别在于子文档不能单独保存，当前辈文档保存时它们就保存了。而middleware和validation，也是在前别组件保存时触发。
+
+**finding a subdocument**
+
+通过前辈文档找到子文档
+
+```js
+var doc = parent.children.id(_id)
+```
+
+这样一个方法就解决了。
+
+有很多解决方式，这样有什么意义啊。
+
+增加，删除，都有了。
+
+### Queries
+
+每个query操作返回一个query对象。
+
+- [`Model.deleteMany()`](https://mongoosejs.com/docs/api.html#model_Model.deleteMany)
+- [`Model.deleteOne()`](https://mongoosejs.com/docs/api.html#model_Model.deleteOne)
+- [`Model.find()`](https://mongoosejs.com/docs/api.html#model_Model.find)
+- [`Model.findById()`](https://mongoosejs.com/docs/api.html#model_Model.findById)
+- [`Model.findByIdAndDelete()`](https://mongoosejs.com/docs/api.html#model_Model.findByIdAndDelete)
+- [`Model.findByIdAndRemove()`](https://mongoosejs.com/docs/api.html#model_Model.findByIdAndRemove)
+- [`Model.findByIdAndUpdate()`](https://mongoosejs.com/docs/api.html#model_Model.findByIdAndUpdate)
+- [`Model.findOne()`](https://mongoosejs.com/docs/api.html#model_Model.findOne)
+- [`Model.findOneAndDelete()`](https://mongoosejs.com/docs/api.html#model_Model.findOneAndDelete)
+- [`Model.findOneAndRemove()`](https://mongoosejs.com/docs/api.html#model_Model.findOneAndRemove)
+- [`Model.findOneAndUpdate()`](https://mongoosejs.com/docs/api.html#model_Model.findOneAndUpdate)
+- [`Model.replaceOne()`](https://mongoosejs.com/docs/api.html#model_Model.replaceOne)
+- [`Model.updateMany()`](https://mongoosejs.com/docs/api.html#model_Model.updateMany)
+- [`Model.updateOne()`](https://mongoosejs.com/docs/api.html#model_Model.updateOne)
+
+这些个查询可以放回调函数，也能用then来操作，但是有then并不是说它是promise，then这个方法会执行查询很多次。
+
+```js
+var Person = mongoose.model('Person', yourSchema);
+// find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
+Person.findOne({ 'name.last': 'Ghost' }, 'name occupation', function (err, person) {
+  if (err) return handleError(err);
+  // Prints "Space Ghost is a talk show host".
+  console.log('%s %s is a %s.', person.name.first, person.name.last,
+    person.occupation);
+});
+```
+
+返回一个query object，都会返回自己，所以进行链式操作。
+
+```js
+// With a JSON doc
+Person.
+  find({
+    occupation: /host/,
+    'name.last': 'Ghost',
+    age: { $gt: 17, $lt: 66 },
+    likes: { $in: ['vaporizing', 'talking'] }
+  }).
+  limit(10).
+  sort({ occupation: -1 }).
+  select({ name: 1, occupation: 1 }).
+  exec(callback);
+
+// Using query builder
+Person.
+  find({ occupation: /host/ }).
+  where('name.last').equals('Ghost').
+  where('age').gt(17).lt(66).
+  where('likes').in(['vaporizing', 'talking']).
+  limit(10).
+  sort('-occupation').
+  select('name occupation').
+  exec(callback);
+
+```
+
+### **validation**
+
+记住下面这些。
+
+> - Validation is defined in the [SchemaType](https://mongoosejs.com/docs/schematypes.html)
+> - Validation is [middleware](https://mongoosejs.com/docs/middleware.html). Mongoose registers validation as a `pre('save')` hook on every schema by default.
+> - You can manually run validation using `doc.validate(callback)` or `doc.validateSync()`
+> - Validators are not run on undefined values. The only exception is the [`required` validator](https://mongoosejs.com/docs/api.html#schematype_SchemaType-required).
+> - Validation is asynchronously recursive; when you call [Model#save](https://mongoosejs.com/docs/api.html#model_Model-save), sub-document validation is executed as well. If an error occurs, your [Model#save](https://mongoosejs.com/docs/api.html#model_Model-save) callback receives it
+> - Validation is customizable
+
+会在save之前执行。
+
+需要知道怎么定义，如果不符合就自定义报什么错，或者根据其他path的值来定义当前path的值是否必须，这些可以去查下。
+
+**自定义验证规则**
+
+**异步验证**
+
+异步验证似乎有点奇怪，难道会等
+
+**验证报错**
+
+**必须验证**
+
+**更新的验证**
+
+据说更新操作默认是不验证的，包括 `update和findOneAndUpdate`两个方法。
+
+但更新的验证和document的验证有区别，里面的运行机制不一样，所以两者的this不一样，
+
+而更新操作篇幅较多，似乎可以对某些path以及某些operation来验证，
+
+### middleware
+
+又称为前置或后置钩子。在schema层面定义，对于写插件很有帮助。
+
+一共有四种中间件。
+
+doc,model,aggregate,query。
+
+反正在使用的时候pre和post，当看到这两个东西的时候，知道他在干嘛就好了。
+
+还有什么异步中间件。
+
+还有同步中间件，而同步中间件只有init的方法。
+
+### populate
+
+殖民？填充?居住？
+
+这个好像是对应mongodb的dbref，用来自动引用在集合中引用其他集合中的文档。
+
+> Population is the process of automatically replacing the specified paths in the document with document(s) from other collection(s).  
+
+这个应该是类似引用的意思，自动替换你所用的path。
+
+在mongodb官方文档里面，通过指定`$ref`和`$id` 
+
+```
+{
+   "_id":ObjectId("53402597d852426020000002"),
+   "address": {
+   "$ref": "address_home",
+   "$id": ObjectId("534009e4d852427820000002"),
+   "$db": "runoob"},
+   "contact": "987654321",
+   "dob": "01-01-1991",
+   "name": "Tom Benzamin"
+}
+
+>var user = db.users.findOne({"name":"Tom Benzamin"})
+>var dbRef = user.address
+>db[dbRef.$ref].findOne({"_id":(dbRef.$id)})
+```
+
+像上面那样，等于可以获取到另外个集合的数据。
+
+ [而mongoose的操作呢](https://mongoosejs.com/docs/populate.html)
+
+先是创建了一个人物的实例-作者，叫做 ian fleming，保存之后返回这个id，创建一个story，story的field- authore就是作者的id。通过这种方式，两者保存起来了。
+
+```js
+Story.
+  findOne({ title: 'Casino Royale' }).
+  populate('author').
+  exec(function (err, story) {
+    if (err) return handleError(err);
+    console.log('The author is %s', story.author.name);
+    // prints "The author is Ian Fleming"
+  });
+```
+
+先找到那个故事，通过故事找到作者的id，只要在查询的时候， 调用populate方法，值为author。因为先前定义schema的时候就定义好了ref，所以在这里populate的意思，应该是代表filed。获取到那个id，然后到之前定义的ref去找就好了。
+
+#### what if there's no foreign document
+
+如果没有的话就返回null了。
+
+#### field Selection
+
+通过`populate('authore','name')`这个就只返回一个属性，name
+
+#### populating mutiple paths
+
+如果populate的是同一个field，据说只有最后一个才有效。
+
+#### query conditions and other options
+
+What if we wanted to populate our fans array based on their age, select just their names, and return at most, any 5 of them? 
+
+```js
+Story.
+  find(...).
+  populate({
+    path: 'fans',
+    match: { age: { $gte: 21 }},
+    // Explicitly exclude `_id`, see http://bit.ly/2aEfTdB
+    select: 'name -_id',
+    options: { limit: 5 }
+  }).
+  exec();
+
+```
+
+
+
+
+
+
 
 ### api
 
@@ -585,5 +1016,47 @@ Model.create({ children: [{ name: 'Luke' }] }, function(error, doc) {
 
 ## 问题
 
-1. 实例的this肯定是实例本身，他的model方法和mongoose.model不一样。但是什么呢。mongoose.model是用来制造集合的。this.model可能会等于db.collection。
-2. 作为module
+### 实例的this
+
+实例的this肯定是实例本身，他的model方法和mongoose.model不一样。但是什么呢。mongoose.model是用来制造集合的。this.model可能会等于db.collection。
+
+### 索引是什么？
+
+索引大概是目录一样的东西，等于在操作的时候同时维护一个索引副本，类似图书馆的书籍分类，按一定规则操作，那么数据就有一定规律。
+
+而使用时，似乎建议在常用的字段添加索引，比如你常常查询某个键，书的书名，那给书名添加索引会给查询书名的时候更快。作者也常常查询，那么也给添加索引。如果你同时查询书名和出版时间，据说可以添加复合索引。
+
+索引如果添加unique，比如用户名，那么这个用户会在数据库层面保持不重复。
+
+这个还有存疑，是不能插入存在相同属性值的文档，还是文档中不能存在相同属性呢？倾向于前者。duplicate values，那应该是值不能重复吧。
+
+多键索引，如果是数组的话，会给数组里面所有的键都给添加索引。
+
+过期索引。索引过期之后相应的数据会被删除?这个有点厉害，但是有啥用呢。
+
+稀疏索引（sparse），据说插入数据的时候，已经存在了也可以插入成功，但是要独特索引混合起来才有用。
+
+> You can combine the sparse index option with the unique index option to reject documents that have duplicate values for a field but ignore documents that do not have the indexed key. .
+
+如果用了这方法，有index属性的doc不能重复添加，但如果没有被索引的键就还是可以插入。现在理解了。
+
+[这篇文章不错，索引的使用](https://www.cnblogs.com/the-last-resort/p/3378715.html)
+
+### Buffer
+
+buffer是一种类数组，用数组来表示二进制的数据的的结构。跟ascii那些编码有关，比如一个中文占3个字节，将其转换成buffer之后会变成3个数字。也可以通过将这些数字转换成utf-8编码的方式，将其转变成中文。
+
+### findAndModify
+
+connection里面说有个配置，可以用这个来代替原生的方式。但搞不清是什么、
+
+### poolsize
+
+connection里面的。
+
+### 分片技术
+
+> 这时，我们就可以通过在多台机器上分割数据，使得数据库系统能存储和处理更多的数据。 
+
+这个分片貌似是把数据放到多个数据库，有操作的时候，先一起去处理，然后谁处理好了就通知一声，大家就不用去管了。像流浪地球的饱和救援。
+
