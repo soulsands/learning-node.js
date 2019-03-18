@@ -383,6 +383,10 @@ var Kitten = mongoose.model('Kitten', kittySchema);
 
 大概也是继承的方式而已。是实例所使用的，里面的this指向实例，就是文档，如果要获取到集合，就是model，似乎用.model方法。
 
+如何使用？
+
+这个里好像可以定义一些通用的方法，比如找到统计所有人的名字出现的次数，或者别的储存数据的方法？	
+
 #### static
 
 ```js
@@ -812,6 +816,8 @@ var doc = parent.children.id(_id)
 
 增加，删除，都有了。
 
+2019.3.18 - 子文档的
+
 ### Queries
 
 每个query操作返回一个query对象。
@@ -997,6 +1003,8 @@ Story.
   exec();
 
 ```
+
+上面的例子，还是非常牛皮的。
 
 
 
