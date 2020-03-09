@@ -1,0 +1,16 @@
+{
+  "name": "mochaTest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --colors  test --recursive --full-trace   "
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@soulsandz/px2remplus-loader": "^1.0.1",
+    "mocha": "^6.1.4"
+  }
+}
