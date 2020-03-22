@@ -43,6 +43,9 @@ util.inherits(SessionStrategy, Strategy); //继承了，会覆盖方法
  * @api protected
  */
 SessionStrategy.prototype.authenticate = function(req, options) {
+  //req会被绑定，如果并且再次之前肯定会调用initilize
+  //inilitilze会添加属性，从这里来看会添加—passport属性
+
   if (!req._passport) {
     return this.error(new Error("passport.initialize() middleware not in use"));
   }

@@ -1,9 +1,8 @@
 /**
  * Module dependencies.
  */
-var SessionStrategy = require('./strategies/session')
-  , SessionManager = require('./sessionmanager');
-
+var SessionStrategy = require("./strategies/session"),
+  SessionManager = require("./sessionmanager");
 
 /**
  * `Authenticator` constructor.
@@ -11,14 +10,14 @@ var SessionStrategy = require('./strategies/session')
  * @api public
  */
 function Authenticator() {
-  this._key = 'passport';
-  this._strategies = {};
-  this._serializers = [];
+  this._key = "passport";
+  this._strategies = {}; //策略
+  this._serializers = []; //一些函数
   this._deserializers = [];
   this._infoTransformers = [];
-  this._framework = null;
-  this._userProperty = 'user';
-  
+  this._framework = null; //这个可以
+  this._userProperty = "user";
+
   this.init();
 }
 
@@ -28,9 +27,17 @@ function Authenticator() {
  * @api protected
  */
 Authenticator.prototype.init = function() {
-  this.framework(require('./framework/connect')());
+  //默认是调用了这方法，让组件默认支持connect和express这种
+  //当然也可以改成别的
+  //这里获取之后还调用了一下，
+  this.framework(require("./framework/connect")());
+
   this.use(new SessionStrategy(this.deserializeUser.bind(this)));
-  this._sm = new SessionManager({ key: this._key }, this.serializeUser.bind(this));
+
+  this._sm = new SessionManager(
+    { key: this._key },
+    this.serializeUser.bind(this)
+  );
 };
 
 /**
@@ -53,8 +60,11 @@ Authenticator.prototype.use = function(name, strategy) {
     strategy = name;
     name = strategy.name;
   }
-  if (!name) { throw new Error('Authentication strategies must have a name'); }
-  
+  if (!name) {
+    throw new Error("Authentication strategies must have a name");
+  }
+
+  //这里把session的名字绑定上了
   this._strategies[name] = strategy;
   return this;
 };
@@ -128,8 +138,9 @@ Authenticator.prototype.framework = function(fw) {
  */
 Authenticator.prototype.initialize = function(options) {
   options = options || {};
-  this._userProperty = options.userProperty || 'user';
-  
+  this._userProperty = options.userProperty || "user";
+  //哦哀悼
+  //require('./framework/connect')
   return this._framework.initialize(this, options);
 };
 
@@ -162,6 +173,8 @@ Authenticator.prototype.initialize = function(options) {
  * @api public
  */
 Authenticator.prototype.authenticate = function(strategy, options, callback) {
+  //返回一个中间件，
+  //如果按内置的例子，那么stagety是session
   return this._framework.authenticate(this, strategy, options, callback);
 };
 
@@ -187,13 +200,14 @@ Authenticator.prototype.authenticate = function(strategy, options, callback) {
  */
 Authenticator.prototype.authorize = function(strategy, options, callback) {
   options = options || {};
-  options.assignProperty = 'account';
-  
+  options.assignProperty = "account";
+
   var fn = this._framework.authorize || this._framework.authenticate;
   return fn(this, strategy, options, callback);
 };
 
 /**
+ * 在session里面恢复数据的东西，就是说根据id，请求数据库，绑定到req里面
  * Middleware that will restore login state from a session.
  *
  * Web applications typically use sessions to maintain login state between
@@ -208,6 +222,11 @@ Authenticator.prototype.authorize = function(strategy, options, callback) {
  *
  * Note that sessions are not strictly required for Passport to operate.
  * However, as a general rule, most web applications will make use of sessions.
+ * //大多应用会利用sessions
+ * 下面这句话有点意思，但是这个例外在于一个api server，每个请求都要验证请求头。
+ * 难道我们现在不是api server？
+ * 看到下面这篇文章，https://www.freecodecamp.org/news/what-is-an-api-in-english-please-b880a3214a82/
+ * 又多点理解，原注释中的api server意思应该是返回数据的接口，而不是做网站的接口。返回数据的接口每次都需要添加token，像微信那样要添加用户信息和密钥
  * An exception to this rule would be an API server, which expects each HTTP
  * request to provide credentials in an Authorization header.
  *
@@ -230,7 +249,9 @@ Authenticator.prototype.authorize = function(strategy, options, callback) {
  * @api public
  */
 Authenticator.prototype.session = function(options) {
-  return this.authenticate('session', options);
+  //所以调用了session方法后会进行这个方法，同样这个方法会暴露出去，比如用在local里面
+  //而这个放啊还是依赖fremawork，默认是没options也能用，所以关键看下session参数什么意思@todo
+  return this.authenticate("session", options);
 };
 
 // TODO: Make session manager pluggable
@@ -253,47 +274,60 @@ Authenticator.prototype.sessionManager = function(mgr) {
  * @api public
  */
 Authenticator.prototype.serializeUser = function(fn, req, done) {
-  if (typeof fn === 'function') {
+  if (typeof fn === "function") {
     return this._serializers.push(fn);
   }
-  
+
+  //私有调用
   // private implementation that traverses the chain of serializers, attempting
   // to serialize a user
   var user = fn;
 
   // For backwards compatibility
-  if (typeof req === 'function') {
+  if (typeof req === "function") {
     done = req;
     req = undefined;
   }
-  
+
   var stack = this._serializers;
+  //从第一个方法开始，一直往下，第一个开始
   (function pass(i, err, obj) {
     // serializers use 'pass' as an error to skip processing
-    if ('pass' === err) {
+    if ("pass" === err) {
       err = undefined;
     }
     // an error or serialized object was obtained, done
-    if (err || obj || obj === 0) { return done(err, obj); }
-    
-    var layer = stack[i];
-    if (!layer) {
-      return done(new Error('Failed to serialize user into session'));
+    //如果已经获取到了，则进行这里done，
+    //在sessionmanage的login里面，这个done有调用
+    //
+    if (err || obj || obj === 0) {
+      return done(err, obj);
     }
-    
-    
+    //第一层
+    var layer = stack[i];
+    //如果没有则报错
+    if (!layer) {
+      return done(new Error("Failed to serialize user into session"));
+    }
+
+    //一个serilizer函数用完就继续调用下一个
+    //这个方法就是例子中的作为参数的回调函数，
+    //有个done，而done就是这个serialized
+    //调用serialized并且把一个object放进去，说明已经获取到了
+    //就是有点绕啊
     function serialized(e, o) {
       pass(i + 1, e, o);
     }
-    
+
     try {
+      //根据注册函数的参数来给东西
       var arity = layer.length;
       if (arity == 3) {
         layer(req, user, serialized);
       } else {
         layer(user, serialized);
       }
-    } catch(e) {
+    } catch (e) {
       return done(e);
     }
   })(0);
@@ -313,50 +347,58 @@ Authenticator.prototype.serializeUser = function(fn, req, done) {
  * @api public
  */
 Authenticator.prototype.deserializeUser = function(fn, req, done) {
-  if (typeof fn === 'function') {
+  //这里的方法是提供给用的
+  if (typeof fn === "function") {
+    //这里已经return了，所以就是把方法放进去而已
     return this._deserializers.push(fn);
   }
-  
+
+  //会用多个方法解析一个用户名字？
   // private implementation that traverses the chain of deserializers,
   // attempting to deserialize a user
   var obj = fn;
 
   // For backwards compatibility
-  if (typeof req === 'function') {
+  if (typeof req === "function") {
     done = req;
     req = undefined;
   }
-  
+
   var stack = this._deserializers;
+  //从0开始
   (function pass(i, err, user) {
     // deserializers use 'pass' as an error to skip processing
-    if ('pass' === err) {
+    if ("pass" === err) {
       err = undefined;
     }
     // an error or deserialized user was obtained, done
-    if (err || user) { return done(err, user); }
+    if (err || user) {
+      return done(err, user);
+    }
     // a valid user existed when establishing the session, but that user has
     // since been removed
-    if (user === null || user === false) { return done(null, false); }
-    
-    var layer = stack[i];
-    if (!layer) {
-      return done(new Error('Failed to deserialize user out of session'));
+    if (user === null || user === false) {
+      return done(null, false);
     }
-    
-    
+
+    var layer = stack[i]; //被用户放进去的deserializeUser
+    if (!layer) {
+      return done(new Error("Failed to deserialize user out of session"));
+    }
+
     function deserialized(e, u) {
       pass(i + 1, e, u);
     }
-    
+
     try {
+      //对用户行为尽心错误捕捉
       var arity = layer.length;
       if (arity == 3) {
         layer(req, obj, deserialized);
       } else {
         layer(obj, deserialized);
       }
-    } catch(e) {
+    } catch (e) {
       return done(e);
     }
   })(0);
@@ -401,41 +443,42 @@ Authenticator.prototype.deserializeUser = function(fn, req, done) {
  * @api public
  */
 Authenticator.prototype.transformAuthInfo = function(fn, req, done) {
-  if (typeof fn === 'function') {
+  if (typeof fn === "function") {
     return this._infoTransformers.push(fn);
   }
-  
+
   // private implementation that traverses the chain of transformers,
   // attempting to transform auth info
   var info = fn;
 
   // For backwards compatibility
-  if (typeof req === 'function') {
+  if (typeof req === "function") {
     done = req;
     req = undefined;
   }
-  
+
   var stack = this._infoTransformers;
   (function pass(i, err, tinfo) {
     // transformers use 'pass' as an error to skip processing
-    if ('pass' === err) {
+    if ("pass" === err) {
       err = undefined;
     }
     // an error or transformed info was obtained, done
-    if (err || tinfo) { return done(err, tinfo); }
-    
+    if (err || tinfo) {
+      return done(err, tinfo);
+    }
+
     var layer = stack[i];
     if (!layer) {
       // if no transformers are registered (or they all pass), the default
       // behavior is to use the un-transformed info as-is
       return done(null, info);
     }
-    
-    
+
     function transformed(e, t) {
       pass(i + 1, e, t);
     }
-    
+
     try {
       var arity = layer.length;
       if (arity == 1) {
@@ -447,14 +490,14 @@ Authenticator.prototype.transformAuthInfo = function(fn, req, done) {
       } else {
         layer(info, transformed);
       }
-    } catch(e) {
+    } catch (e) {
       return done(e);
     }
   })(0);
 };
 
 /**
- * Return strategy with given `name`. 
+ * Return strategy with given `name`.
  *
  * @param {String} name
  * @return {Strategy}
@@ -463,7 +506,6 @@ Authenticator.prototype.transformAuthInfo = function(fn, req, done) {
 Authenticator.prototype._strategy = function(name) {
   return this._strategies[name];
 };
-
 
 /**
  * Expose `Authenticator`.

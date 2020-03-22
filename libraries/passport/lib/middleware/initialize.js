@@ -40,7 +40,7 @@
  * @api public
  */
 module.exports = function initialize(passport) {
-  
+  //返回一个中间件，在req上添加初始属性
   return function initialize(req, res, next) {
     req._passport = {};
     req._passport.instance = passport;
